@@ -73,6 +73,18 @@ describe('ExecutionResponseSender', () => {
 		);
 	});
 
+	it('stamps the execution id, so a step carries no routing state', () => {
+		const frameSender: ResponseFrameSender = { send: vi.fn(), stop: vi.fn() };
+		const sender = new ExecutionResponseSender(frameSender);
+
+		sender.emitterFor('exec-1').send({ ok: true });
+
+		expect(frameSender.send).toHaveBeenCalledExactlyOnceWith(
+			'exec-1',
+			JSON.stringify({ type: 'response', executionId: 'exec-1', payload: { ok: true } }),
+		);
+	});
+
 	it('stops its frame sender', async () => {
 		const frameSender: ResponseFrameSender = { send: vi.fn(), stop: vi.fn() };
 		const sender = new ExecutionResponseSender(frameSender);

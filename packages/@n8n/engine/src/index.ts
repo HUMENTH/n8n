@@ -40,12 +40,15 @@ export {
 	ExecutionResponseSender,
 	executionResponseSchema,
 	noopResponseFrameSender,
+	noopResponseEmitter,
 } from './response-channel';
 export type {
 	EndedMessage,
 	ExecutionResponse,
 	ResponseFrameReceiver,
 	ResponseFrameSender,
+	ResponseEmitter,
+	ResponseMessage,
 	Unsubscribe,
 } from './response-channel';
 

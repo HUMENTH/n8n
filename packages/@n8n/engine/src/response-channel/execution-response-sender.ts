@@ -1,7 +1,12 @@
 import { toResult } from '@n8n/utils/result';
 
+import type { JsonValue } from '../common';
 import { createConsoleLogger, type EngineLogger } from '../logging';
-import type { ExecutionResponse, FailureMessage } from './execution-response.types';
+import type {
+	ExecutionResponse,
+	FailureMessage,
+	ResponseEmitter,
+} from './execution-response.types';
 import type { ResponseFrameSender } from './response-frame';
 
 /** A frame sender must be able to carry every frame this class produces. */
@@ -17,6 +22,13 @@ export class ExecutionResponseSender {
 
 	send(response: ExecutionResponse): void {
 		this.frameSender.send(response.executionId, this.toFrame(response));
+	}
+
+	/** Gives one step a response sender without exposing execution routing. */
+	emitterFor(executionId: string): ResponseEmitter {
+		return {
+			send: (payload: JsonValue) => this.send({ type: 'response', executionId, payload }),
+		};
 	}
 
 	async stop(): Promise<void> {
