@@ -49,11 +49,9 @@ export class EngineV2Module implements ModuleInterface {
 		// In-memory for now because both planes share this process. Separate frame
 		// endpoints can later use Redis when the planes run in different processes.
 		const { frameSender, frameReceiver } = createInMemoryResponsePair();
-		const responseSender = new ExecutionResponseSender(frameSender);
-		const responseReceiver = new ExecutionResponseReceiver(
-			frameReceiver,
-			Container.get(Logger).scoped('engine-v2'),
-		);
+		const scopedLogger = Container.get(Logger).scoped('engine-v2');
+		const responseSender = new ExecutionResponseSender(frameSender, scopedLogger);
+		const responseReceiver = new ExecutionResponseReceiver(frameReceiver, scopedLogger);
 		Container.get(EngineV2WebhookResponder).useReceiver(responseReceiver);
 		this.responseSender = responseSender;
 		this.responseReceiver = responseReceiver;
