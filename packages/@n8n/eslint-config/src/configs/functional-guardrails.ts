@@ -15,6 +15,7 @@ export const functionalGuardrailsConfig = tseslint.config({
 	rules: {
 		'n8n-local-rules/no-deployment-key-delete': 'error',
 		'n8n-local-rules/no-unsealed-workflow-entity-write': 'error',
+		'n8n-local-rules/no-unsealed-credentials-entity-write': 'error',
 		'n8n-local-rules/no-encryption-guardrail-disable': 'error',
 		'n8n-local-rules/no-guardrail-disable': [
 			'error',
@@ -23,6 +24,10 @@ export const functionalGuardrailsConfig = tseslint.config({
 					{
 						rule: 'no-unsealed-workflow-entity-write',
 						message: 'Route the write through a token-gated `WorkflowRepository` method.',
+					},
+					{
+						rule: 'no-unsealed-credentials-entity-write',
+						message: 'Route the write through a token-gated `CredentialsRepository` method.',
 					},
 				],
 			},
