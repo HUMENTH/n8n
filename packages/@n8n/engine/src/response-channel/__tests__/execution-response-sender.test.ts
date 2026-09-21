@@ -85,6 +85,22 @@ describe('ExecutionResponseSender', () => {
 		);
 	});
 
+	it('sends a chunk with the execution id', () => {
+		const frameSender: ResponseFrameSender = { send: vi.fn(), stop: vi.fn() };
+		const sender = new ExecutionResponseSender(frameSender);
+
+		sender.emitterFor('exec-1').chunk({ type: 'item', content: 'hello' });
+
+		expect(frameSender.send).toHaveBeenCalledExactlyOnceWith(
+			'exec-1',
+			JSON.stringify({
+				type: 'chunk',
+				executionId: 'exec-1',
+				payload: { type: 'item', content: 'hello' },
+			}),
+		);
+	});
+
 	it('stops its frame sender', async () => {
 		const frameSender: ResponseFrameSender = { send: vi.fn(), stop: vi.fn() };
 		const sender = new ExecutionResponseSender(frameSender);

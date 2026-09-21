@@ -28,6 +28,7 @@ export class ExecutionResponseSender {
 	emitterFor(executionId: string): ResponseEmitter {
 		return {
 			send: (payload: JsonValue) => this.send({ type: 'response', executionId, payload }),
+			chunk: (payload: JsonValue) => this.send({ type: 'chunk', executionId, payload }),
 		};
 	}
 
