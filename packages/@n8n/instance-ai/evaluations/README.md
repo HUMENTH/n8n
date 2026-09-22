@@ -798,6 +798,8 @@ A case that tests credential behaviour declares what should exist:
 
 Declared credentials are created for real (placeholder token; set the matching `EVAL_*_ACCESS_TOKEN` for a live token) before the build, the thread's view is pinned to exactly that set, and they're deleted at the end of the run. Their connection test resolves as passing — a declared credential stands for one the user already connected — the same treatment a credential set up on a card during the run gets. Counts matter: exactly one credential of a type is the builder's auto-attach path; two or more force the mock path. `name` is optional — duplicates get a `#2` suffix.
 
+On a setup card the simulated user creates **one credential per credential type** and selects it for every slot of that type, the way a real user reuses one key across nodes. Three OpenAI slots produce one `[eval] OpenAI`, not three. A card with two types still produces two credentials.
+
 Each type needs a data template in `credentials/seeder.ts`; declaring an unknown type fails the build with a pointer there.
 
 Each declared credential can also have a `description`. The loader applies the

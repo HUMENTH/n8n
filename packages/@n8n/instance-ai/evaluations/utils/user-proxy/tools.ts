@@ -255,7 +255,7 @@ export const CONFIRMATION_TOOL_DESCRIPTIONS = `Available actions — confirmatio
 
 - answer_questions(answers[]): The agent fired an ask-user confirmation (inputType=questions). Answer every question with a plausible value — stated → implied → invented. Invent rather than skip. Set skipped=true only when the question has no plausible answer of any shape, OR when a [stage direction] in the script tells the user to decline or withhold that value — in that case you MUST set skipped=true with an empty selectedOptions and pick NO option (not even one that looks standard or obvious); picking a value defeats the test.
 
-- apply_setup_wizard(nodeParametersJson, nodeCredentialsJson?, workingCredentialTypes?): The agent fired a setup-wizard / "configure your workflow" setup card with placeholder parameters and/or credential slots (the event's payload has \`setupRequests\`). \`nodeParametersJson\` decodes to { "<setup node name>": { "<paramName>": <value>, ... }, ... } — fill every non-credential placeholder with a plausible value (stated → implied → invented). Credential slots (a request entry with \`credentialType\`) stay unset by default — omit \`nodeCredentialsJson\` or leave that node/type out of it — UNLESS a stage direction governing this exact card tells the user to engage; then set \`nodeCredentialsJson\` to { "<setup node name>": { "<credentialType>": "<id>" } }. What \`<id>\` should be depends on that request's \`existingCredentials\`: zero entries → put any placeholder string, a real credential will be created for you; exactly one → put its \`id\`; two or more → put the \`id\` of the one the direction names (match by its \`name\`). This is the ONLY correct way to fill a setup card — do NOT answer it with answer_questions. To deliberately leave a value unset (e.g. a stage direction says the user skips it), dismiss the whole card with approve_or_reject(approved=false) instead of filling it. Whenever you fill a credential slot, list that slot's credential type in \`workingCredentialTypes\` — completing a setup card means the credential the user entered authenticates, which is what the real product requires before it will let the card be applied. Leave a type out ONLY when a stage direction says that particular credential is invalid, expired, revoked or otherwise won't authenticate; with several credentials on one card a direction may make one work and another fail, so list exactly the working ones.
+- apply_setup_wizard(nodeParametersJson, nodeCredentialsJson?, workingCredentialTypes?): The agent fired a setup-wizard / "configure your workflow" setup card with placeholder parameters and/or credential slots (the event's payload has \`setupRequests\`). \`nodeParametersJson\` decodes to { "<setup node name>": { "<paramName>": <value>, ... }, ... } — fill every non-credential placeholder with a plausible value (stated → implied → invented). Credential slots (a request entry with \`credentialType\`) stay unset by default — omit \`nodeCredentialsJson\` or leave that node/type out of it — UNLESS a stage direction governing this exact card tells the user to engage; then set \`nodeCredentialsJson\` to { "<setup node name>": { "<credentialType>": "<id>" } }. What \`<id>\` should be depends on that request's \`existingCredentials\`: zero entries → put any placeholder string, a real credential will be created for you (one per credential type on the card, reused for every slot of that type); exactly one → put its \`id\`; two or more → put the \`id\` of the one the direction names (match by its \`name\`). This is the ONLY correct way to fill a setup card — do NOT answer it with answer_questions. To deliberately leave a value unset (e.g. a stage direction says the user skips it), dismiss the whole card with approve_or_reject(approved=false) instead of filling it. Whenever you fill a credential slot, list that slot's credential type in \`workingCredentialTypes\` — completing a setup card means the credential the user entered authenticates, which is what the real product requires before it will let the card be applied. Leave a type out ONLY when a stage direction says that particular credential is invalid, expired, revoked or otherwise won't authenticate; with several credentials on one card a direction may make one work and another fail, so list exactly the working ones.
 
 - approve_or_reject(approved, userInput?): A plan-review or free-text confirmation widget is on screen (the event's inputType is plan-review or text). Approve if the plan matches user intent; reject with reason if it diverges. This action only exists as a response to such a widget.
 
@@ -538,6 +538,9 @@ async function parseNodeCredentialsJson(
 	}
 
 	const result: Record<string, Record<string, string>> = {};
+	// One credential per type per card, reused for every slot of that type: a real
+	// user creates one key and picks it again on the next node.
+	const createdByType = new Map<string, { id: string; name: string }>();
 	for (const [key, credsByType] of Object.entries(parsed)) {
 		const node = nodeByAcceptedKey.get(key);
 		if (!node || !isRecord(credsByType)) {
@@ -557,17 +560,22 @@ async function parseNodeCredentialsJson(
 			}
 
 			if (request.existingCredentials.length === 0) {
-				const created = await tryCreateCredential(
-					createCredential,
-					credentialType,
-					'apply_setup_wizard',
-					onFailure,
-					{
-						works: workingCredentialTypes?.has(credentialType) === true,
-						setupHint: request.setupHint,
-					},
-				);
-				if (created) (result[node.nodeName] ??= {})[credentialType] = created.id;
+				const created =
+					createdByType.get(credentialType) ??
+					(await tryCreateCredential(
+						createCredential,
+						credentialType,
+						'apply_setup_wizard',
+						onFailure,
+						{
+							works: workingCredentialTypes?.has(credentialType) === true,
+							setupHint: request.setupHint,
+						},
+					));
+				if (created) {
+					createdByType.set(credentialType, created);
+					(result[node.nodeName] ??= {})[credentialType] = created.id;
+				}
 				continue;
 			}
 

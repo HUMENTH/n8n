@@ -171,7 +171,7 @@ credential/OAuth/connect vocabulary at the moment the card would appear
 
 | Existing candidates | What happens | Case setup |
 |---|---|---|
-| Zero | The harness **creates a real credential** (via the same per-type template `credentials/seeder.ts` uses for pre-run seeding) and selects the new id | Don't declare that type in `credentials[]` at all |
+| Zero | The harness **creates a real credential** (via the same per-type template `credentials/seeder.ts` uses for pre-run seeding) and selects the new id. On a setup card with several slots of one type it creates **one credential per type** and selects it for every slot, as a real user reuses one key | Don't declare that type in `credentials[]` at all |
 | One | Selected automatically, no disambiguation needed | Declare exactly one: `credentials: [{ "type": "slackApi" }]` |
 | Two or more | The director note must name a specific one by its declared `name`; the proxy echoes it back to disambiguate | Declare 2+ with distinct `name`s, e.g. `credentials: [{ "type": "slackApi", "name": "Personal Slack" }, { "type": "slackApi", "name": "Team Slack" }]` |
 

@@ -993,6 +993,69 @@ describe('UserProxyLlm.respondToConfirmation', () => {
 		expect(proxy.getDecisionStats()['credential-test-bypassed']).toBe(1);
 	});
 
+	it("workflows(action='setup'): creates one credential per type and reuses it for every slot on the card", async () => {
+		const agent = new FakeAgent();
+		agent.enqueue({
+			action: 'apply_setup_wizard',
+			nodeParametersJson: '{}',
+			nodeCredentialsJson: JSON.stringify({
+				Summarise: { openAiApi: 'new' },
+				Classify: { openAiApi: 'new' },
+				Headline: { openAiApi: 'new' },
+			}),
+			workingCredentialTypes: ['openAiApi'],
+		});
+		const { client, createCredential, setThreadCredentialAllowlist } =
+			fakeCredentialClient('cred-openai');
+		const proxy = new UserProxyLlm({
+			conversation: [
+				{ role: 'user', text: 'Add my new OpenAI key to all the LLM nodes.' },
+				{ role: 'user', text: '[Set up the OpenAI credential now, once, with a key that works.]' },
+			],
+			agent,
+			credentialCreation: { client, threadId: 'thread-1', allowlistedCredentialIds: [] },
+		});
+
+		const response = await proxy.respondToConfirmation(
+			setupWizardEvent('req-sw-one-per-type', [
+				{
+					nodeId: 'n1',
+					nodeName: 'Summarise',
+					credentialType: 'openAiApi',
+					existingCredentials: [],
+				},
+				{
+					nodeId: 'n2',
+					nodeName: 'Classify',
+					credentialType: 'openAiApi',
+					existingCredentials: [],
+				},
+				{
+					nodeId: 'n3',
+					nodeName: 'Headline',
+					credentialType: 'openAiApi',
+					existingCredentials: [],
+				},
+			]),
+		);
+
+		// A real user creates one key and picks it again on the next node.
+		expect(createCredential).toHaveBeenCalledTimes(1);
+		expect(response.kind).toBe('setupWorkflowApply');
+		if (response.kind !== 'setupWorkflowApply') return;
+		expect(response.nodeCredentials).toEqual({
+			Summarise: { openAiApi: 'cred-openai' },
+			Classify: { openAiApi: 'cred-openai' },
+			Headline: { openAiApi: 'cred-openai' },
+		});
+		expect(setThreadCredentialAllowlist).toHaveBeenLastCalledWith(
+			'thread-1',
+			['cred-openai'],
+			['cred-openai'],
+		);
+		expect(proxy.getDecisionStats()['credential-test-bypassed']).toBe(1);
+	});
+
 	it("workflows(action='setup'): bypasses only the credential types the direction says work, on a two-credential card", async () => {
 		const agent = new FakeAgent();
 		agent.enqueue({
