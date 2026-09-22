@@ -39,10 +39,13 @@ export class EngineV2Module implements ModuleInterface {
 		const { EngineControlPlaneServer } = await import('./engine-control-plane-server.js');
 		await Container.get(EngineControlPlaneServer).start();
 
-		// Create both endpoints before the engine starts. A short run can answer
+		// Hand both endpoints over before the engine starts. A short run can answer
 		// before `startExecution` returns, and responses are not replayed.
 		const { createInMemoryResponsePair, ExecutionResponseReceiver, ExecutionResponseSender } =
 			await import('@n8n/engine');
+		const { EngineV2WebhookResponder } = await import(
+			'@/services/engine-v2-webhook-responder.service.js'
+		);
 		// In-memory for now because both planes share this process. Separate frame
 		// endpoints can later use Redis when the planes run in different processes.
 		const { frameSender, frameReceiver } = createInMemoryResponsePair();
@@ -51,6 +54,7 @@ export class EngineV2Module implements ModuleInterface {
 			frameReceiver,
 			Container.get(Logger).scoped('engine-v2'),
 		);
+		Container.get(EngineV2WebhookResponder).useReceiver(responseReceiver);
 		this.responseSender = responseSender;
 		this.responseReceiver = responseReceiver;
 
