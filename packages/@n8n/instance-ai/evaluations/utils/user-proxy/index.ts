@@ -129,6 +129,9 @@ export class UserProxyLlm {
 	private savedWorkflows: ReturnType<typeof savedWorkflowsFromEvents> = [];
 
 	private readonly credentialCreation?: CredentialCreationConfig;
+	/** Credentials this proxy created, by type. A later card in the same thread can
+	 *  list none for a type the user already created; the user picks it again. */
+	private readonly createdCredentialsByType = new Map<string, { id: string; name: string }>();
 	/** Mutable running copy of `credentialCreation.allowlistedCredentialIds` —
 	 *  grows as `createCredential` mints new ones, since the allowlist endpoint
 	 *  replaces the whole list rather than appending. */
@@ -273,6 +276,8 @@ export class UserProxyLlm {
 			throw new Error('createCredential invoked without a credentialCreation config');
 		}
 		const { client, threadId, createdCredentialIds } = this.credentialCreation;
+		const existing = this.createdCredentialsByType.get(credentialType);
+		if (existing) return existing;
 		const created = await createOneCredential(
 			client,
 			credentialType,
@@ -280,6 +285,7 @@ export class UserProxyLlm {
 			this.createdCredentialNameCounts,
 			{ logger: this.logger, setupHint: options?.setupHint },
 		);
+		this.createdCredentialsByType.set(credentialType, created);
 		createdCredentialIds?.add(created.id);
 		this.allowlistedCredentialIds = [...this.allowlistedCredentialIds, created.id];
 		// A "works" credential still carries a placeholder token, so its real

@@ -1056,6 +1056,62 @@ describe('UserProxyLlm.respondToConfirmation', () => {
 		expect(proxy.getDecisionStats()['credential-test-bypassed']).toBe(1);
 	});
 
+	it("workflows(action='setup'): reuses the credential it created when a later card lists none of that type", async () => {
+		const agent = new FakeAgent();
+		agent.enqueue({
+			action: 'apply_setup_wizard',
+			nodeParametersJson: '{}',
+			nodeCredentialsJson: JSON.stringify({ Summarise: { openAiApi: 'new' } }),
+			workingCredentialTypes: ['openAiApi'],
+		});
+		agent.enqueue({
+			action: 'apply_setup_wizard',
+			nodeParametersJson: '{}',
+			nodeCredentialsJson: JSON.stringify({ Classify: { openAiApi: 'new' } }),
+			workingCredentialTypes: ['openAiApi'],
+		});
+		const { client, createCredential } = fakeCredentialClient('cred-openai', 'cred-openai-2');
+		const proxy = new UserProxyLlm({
+			conversation: [
+				{ role: 'user', text: 'Add my new OpenAI key to all the LLM nodes.' },
+				{ role: 'user', text: '[Set up the OpenAI credential now, once, with a key that works.]' },
+			],
+			agent,
+			credentialCreation: { client, threadId: 'thread-1', allowlistedCredentialIds: [] },
+		});
+
+		const first = await proxy.respondToConfirmation(
+			setupWizardEvent('req-sw-card-1', [
+				{
+					nodeId: 'n1',
+					nodeName: 'Summarise',
+					credentialType: 'openAiApi',
+					existingCredentials: [],
+				},
+			]),
+		);
+		// Observed in a validation run: the product built a second card that listed no
+		// existing credential although the first card had just created one.
+		const second = await proxy.respondToConfirmation(
+			setupWizardEvent('req-sw-card-2', [
+				{
+					nodeId: 'n2',
+					nodeName: 'Classify',
+					credentialType: 'openAiApi',
+					existingCredentials: [],
+				},
+			]),
+		);
+
+		expect(createCredential).toHaveBeenCalledTimes(1);
+		expect(first.kind === 'setupWorkflowApply' ? first.nodeCredentials : undefined).toEqual({
+			Summarise: { openAiApi: 'cred-openai' },
+		});
+		expect(second.kind === 'setupWorkflowApply' ? second.nodeCredentials : undefined).toEqual({
+			Classify: { openAiApi: 'cred-openai' },
+		});
+	});
+
 	it("workflows(action='setup'): bypasses only the credential types the direction says work, on a two-credential card", async () => {
 		const agent = new FakeAgent();
 		agent.enqueue({
