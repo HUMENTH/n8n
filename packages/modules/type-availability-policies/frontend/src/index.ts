@@ -7,3 +7,5 @@ export {
 } from './composables/useNodeTypeRestriction';
 export { default as ContactInstanceAdminModal } from './components/ContactInstanceAdminModal.vue';
 export { default as RestrictedNodePopover } from './components/RestrictedNodePopover.vue';
+export { getPolicyViolations } from './policy-violations/policyViolations';
+export { default as PolicyViolationList } from './policy-violations/PolicyViolationList.vue';
